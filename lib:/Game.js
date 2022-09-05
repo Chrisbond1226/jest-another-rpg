@@ -1,8 +1,9 @@
 const inquirer = require("inquirer");
+const { relativeTimeThreshold } = require("moment");
 const Enemy = require("./Enemy");
 const Player = require("./Player");
 
-function game() {
+function Game() {
   this.roundNumber = 0;
   this.isPlayerTurn = false;
   this.enemies = [];
@@ -10,7 +11,7 @@ function game() {
   this.player;
 }
 
-game.prototype.initializeGame = function () {
+Game.prototype.initializeGame = function () {
   this.enemies.push(new Enemy("goblin", "sword"));
   this.enemies.push(new Enemy("orc", "baseball bat"));
   this.enemies.push(new Enemy("skeleton", "axe"));
@@ -30,5 +31,57 @@ game.prototype.initializeGame = function () {
       this.startNewBattle();
     });
 };
+Game.prototype.startNewBattle = function () {
+  if (this.player.agility > this.currentEnemy.agility) {
+    this.isPlayerTurn = true;
+  } else {
+    this.isPlayerTurn = false;
+  }
+  console.log("Your stats are as follows:");
+  console.table(this.player.getStats());
+  console.log(this.currentEnemy.getDescription());
+  this.battle();
+};
 
-module.exports = game;
+Game.prototype.battle = function () {
+  if (this.isPlayerTurn) {
+    // player prompts will go here
+    inquirer
+      .prompt({
+        type: "list",
+        message: "What would you like to do?",
+        name: "action",
+        choices: ["Attack", "Use potion"],
+      })
+      .then(({ action }) => {
+        if (action === "Use potion") {
+          // follow-up prompt will go here
+          if (!this.player.getInventory()) {
+            console.log("You don't have any potions!");
+            return;
+          }
+          inquirer
+            .prompt({
+              type: "list",
+              message: "Which potion would you like to use?",
+              name: "action",
+              choices: this.player
+                .getInventory()
+                .map((item, index) => `${index + 1}: ${item.name}`),
+            })
+            .then(({ action }) => {
+              const potionDetails = action.split(": ");
+              this.player.usePotion(potionDetails[0] - 1);
+              console.log(`You used a ${potionDetails[1]} potion.`);
+            });
+        } else {
+          const damage = this.player.getAttackValue();
+          this.currentEnemy.reduceHealth(damage);
+
+          console.log(`You were attacked by the ${this.currentEnemy.name}`);
+          console.log(this.currentEnemy.getHealth());
+        }
+      });
+  }
+};
+module.exports = Game;
